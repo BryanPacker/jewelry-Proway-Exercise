@@ -45,7 +45,7 @@ resource "azurerm_network_security_group" "main" {
 
   security_rule {
     name                       = "SSH"
-    priority                   = 1001
+    priority                   = 101
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
@@ -57,7 +57,7 @@ resource "azurerm_network_security_group" "main" {
 
   security_rule {
     name                       = "HTTP"
-    priority                   = 1002
+    priority                   = 102
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
@@ -123,8 +123,11 @@ resource "azurerm_linux_virtual_machine" "main" {
     systemctl start docker
     systemctl enable docker
     usermod -aG docker adminuser
-    
+
+    docker container stop jewelry-app 2> /dev/null
+
     cd /home/adminuser
+    rm -rf proway-docker/
     git clone https://github.com/dartanghan/proway-docker.git
     cd proway-docker/modulo7-iac_tooling
     
