@@ -8,143 +8,96 @@ terraform {
 }
 
 provider "aws" {
-  region = var.region_aws
+  region = "us-east-1"
 }
 
-provider "azurerm" {
-  features {}
-}
+resource "aws_vpc" "jewelry-vpc" {
+  cidr_block       = "10.0.1.0/16"
+  region = "us-east-1"
 
-resource "azurerm_resource_group" "main" {
-  name     = "jewelry-app-rg"
-  location = "East US 2"
-}
-
-resource "azurerm_virtual_network" "main" {
-  name                = "jewelry-vnet"
-  address_space       = ["10.0.0.0/16"]
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-}
-
-resource "azurerm_subnet" "internal" {
-  name                 = "internal"
-  resource_group_name  = azurerm_resource_group.main.name
-  virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = ["10.0.2.0/24"]
-}
-
-resource "azurerm_public_ip" "main" {
-  name                = "jewelry-pip"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  allocation_method   = "Static"
-  sku                 = "Standard"
-}
-
-resource "azurerm_network_security_group" "main" {
-  name                = "jewelry-nsg"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-
-  security_rule {
-    name                       = "SSH"
-    priority                   = 101
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "HTTP"
-    priority                   = 102
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "8080"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
+  tags = {
+    Name = "jewelry-vpc-bryan"
   }
 }
 
-resource "azurerm_network_interface" "main" {
-  name                = "jewelry-nic"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-
-  ip_configuration {
-    name                          = "testconfiguration1"
-    subnet_id                     = azurerm_subnet.internal.id
-    private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.main.id
+resource "aws_subnet" "jewelry-subnet" {
+  vpc_id     = aws_vpc.jewelry-vpc.id
+  cidr_block = "10.0.1.0/24"
+  map_public_ip_on_launch = "true"
+  tags = {
+    Name = "jewelry-subnet-bryan"
   }
 }
 
-resource "azurerm_network_interface_security_group_association" "main" {
-  network_interface_id      = azurerm_network_interface.main.id
-  network_security_group_id = azurerm_network_security_group.main.id
+resource "aws_security_group" "jewelry-sec-group" {
+  name        = "jewelry-sg-bryan"
+  vpc_id      = aws_vpc.jewelry-vpc.id
+  tags = {
+    Name = "jewelry-sec-group-bryan"
+  }
 }
 
-resource "azurerm_linux_virtual_machine" "main" {
-  name                = "jewelry-vm"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  size                = "Standard_B1s"
-  admin_username      = "adminuser"
+resource "aws_vpc_security_group_ingress_rule" "allow_tls_ipv4" {
+  security_group_id = aws_security_group.jewelry-sec-group.id
+  cidr_ipv4         = aws_vpc.jewelry-vpc.cidr_block
+  from_port         = 8080
+  ip_protocol       = "tcp"
+  to_port           = 8080
+}
 
-  disable_password_authentication = true
+resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
+  security_group_id = aws_security_group.allow_tls.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "-1" # semantically equivalent to all ports
+}
 
-  network_interface_ids = [
-    azurerm_network_interface.main.id,
-  ]
+data "aws_ami" "ubuntu" {
+  most_recent = true
 
-  admin_ssh_key {
-    username   = "adminuser"
-    public_key = file("~/.ssh/id_rsa.pub")
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
   }
 
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
   }
 
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-focal"
-    sku       = "20_04-lts-gen2"
-    version   = "latest"
-  }
+  owners = ["099720109477"] # Canonical
+}
 
-  custom_data = base64encode(<<-EOF
+resource "aws_instance" "jewelry-bryan" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = var.instance_type
+  associate_public_ip_address = "true"
+  security_groups = [ aws_security_group.jewelry-sec-group.id]
+  subnet_id = aws_subnet.jewelry-subnet.id
+  user-data = <<-EOF 
+
     #!/bin/bash
-    apt-get update
-    apt-get install -y docker.io git
+    apt update
+    apt install -y docker.io git build-essential
     systemctl start docker
     systemctl enable docker
-    usermod -aG docker adminuser
-
     docker container stop jewelry-app 2> /dev/null
-
-    cd /home/adminuser
+    cd /home
     rm -rf proway-docker/
-    git clone https://github.com/dartanghan/proway-docker.git
-    cd proway-docker/modulo7-iac_tooling
-    
-    docker build -t jewelry-app .
-    docker run -d -p 8080:80 jewelry-app
+    git clone https://github.com/BryanPacker/jewelry-Proway-Exercise.git
+    cd ./modulo7-iac_tooling
+    make docker-run
+
   EOF
-  )
-}
+
+  tags = {
+    Name = "jewelry-instance-bryan"
+  }
+} 
 
 output "vm_public_ip" {
-  value = azurerm_public_ip.main.ip_address
+  value = aws_instance.jewelry-bryan.public_ip
 }
 
 output "app_url" {
-  value = "http://${azurerm_public_ip.main.ip_address}:8080"
+  value = "http://${aws_instance.jewelry-bryan.public_ip}:8080"
 }
