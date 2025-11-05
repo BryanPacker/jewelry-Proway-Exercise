@@ -15,20 +15,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      # ==========================================
-      # Setup AWS Credentials
-      # ==========================================
-      - name: Configure AWS Credentials
-        run: |
-          echo "🔐 Configuring AWS credentials..."
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          echo "✓ AWS credentials configured"
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PRIVATE_ACCESS_KEY }}
-
+        
       # ==========================================
       # Setup Terraform
       # ==========================================
