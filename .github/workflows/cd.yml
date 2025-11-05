@@ -33,7 +33,6 @@ jobs:
           echo "======================================"
           echo "  TERRAFORM FORMAT CHECK"
           echo "======================================"
-          cd terraform
           terraform fmt -recursive -check
           if [ $? -eq 0 ]; then
             echo "✓ All Terraform files are properly formatted"
@@ -54,7 +53,6 @@ jobs:
           echo "======================================"
           echo "  TERRAFORM INITIALIZATION"
           echo "======================================"
-          cd terraform
           terraform init
           echo "✓ Terraform initialized successfully"
           cd ..
@@ -71,7 +69,6 @@ jobs:
           echo "======================================"
           echo "  TERRAFORM VALIDATION"
           echo "======================================"
-          cd terraform
           terraform validate
           echo "✓ Terraform configuration is valid"
           cd ..
@@ -88,7 +85,6 @@ jobs:
           echo "======================================"
           echo "  TERRAFORM PLAN"
           echo "======================================"
-          cd terraform
           terraform plan -out=tfplan
           echo ""
           echo "Plan saved to: tfplan"
@@ -107,7 +103,6 @@ jobs:
           echo "======================================"
           echo "  TERRAFORM APPLY"
           echo "======================================"
-          cd terraform
           echo "Applying saved plan: tfplan"
           terraform apply tfplan
           echo ""
