@@ -15,20 +15,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      # ==========================================
-      # Setup AWS Credentials
-      # ==========================================
-      - name: Configure AWS Credentials
-        run: |
-          echo "🔐 Configuring AWS credentials..."
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          echo "✓ AWS credentials configured"
-         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PRIVATE_ACCESS_KEY }}
-
+        
       # ==========================================
       # Setup Terraform
       # ==========================================
@@ -46,7 +33,6 @@ jobs:
           echo "======================================"
           echo "  TERRAFORM FORMAT CHECK"
           echo "======================================"
-          cd terraform
           terraform fmt -recursive -check
           if [ $? -eq 0 ]; then
             echo "✓ All Terraform files are properly formatted"
@@ -67,11 +53,10 @@ jobs:
           echo "======================================"
           echo "  TERRAFORM INITIALIZATION"
           echo "======================================"
-          cd terraform
           terraform init
           echo "✓ Terraform initialized successfully"
           cd ..
-         env:
+        env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PRIVATE_ACCESS_KEY }}
 
@@ -84,11 +69,10 @@ jobs:
           echo "======================================"
           echo "  TERRAFORM VALIDATION"
           echo "======================================"
-          cd terraform
           terraform validate
           echo "✓ Terraform configuration is valid"
           cd ..
-         env:
+        env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PRIVATE_ACCESS_KEY }}}
 
@@ -101,13 +85,12 @@ jobs:
           echo "======================================"
           echo "  TERRAFORM PLAN"
           echo "======================================"
-          cd terraform
           terraform plan -out=tfplan
           echo ""
           echo "Plan saved to: tfplan"
           echo "✓ Terraform plan generated"
           cd ..
-         env:
+        env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PRIVATE_ACCESS_KEY }}
 
@@ -120,7 +103,6 @@ jobs:
           echo "======================================"
           echo "  TERRAFORM APPLY"
           echo "======================================"
-          cd terraform
           echo "Applying saved plan: tfplan"
           terraform apply tfplan
           echo ""
