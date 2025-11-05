@@ -1,0 +1,154 @@
+name: Deploy Infrastructure
+
+on:
+  workflow_run:
+    workflows: ["Security Checks"]
+    types:
+      - completed
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ==========================================
+      # Setup AWS Credentials
+      # ==========================================
+      - name: Configure AWS Credentials
+        run: |
+          echo "🔐 Configuring AWS credentials..."
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          echo "✓ AWS credentials configured"
+         env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PRIVATE_ACCESS_KEY }}
+
+      # ==========================================
+      # Setup Terraform
+      # ==========================================
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+
+      # ==========================================
+      # Terraform Format (Check & Fix)
+      # ==========================================
+      - name: Terraform Format Check
+        id: fmt
+        run: |
+          echo "======================================"
+          echo "  TERRAFORM FORMAT CHECK"
+          echo "======================================"
+          cd terraform
+          terraform fmt -recursive -check
+          if [ $? -eq 0 ]; then
+            echo "✓ All Terraform files are properly formatted"
+          else
+            echo "⚠️  Formatting issues found - auto-fixing..."
+            terraform fmt -recursive
+            echo "✓ Terraform files formatted"
+          fi
+          cd ..
+        continue-on-error: true
+
+      # ==========================================
+      # Terraform Init
+      # ==========================================
+      - name: Terraform Init
+        id: init
+        run: |
+          echo "======================================"
+          echo "  TERRAFORM INITIALIZATION"
+          echo "======================================"
+          cd terraform
+          terraform init
+          echo "✓ Terraform initialized successfully"
+          cd ..
+         env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PRIVATE_ACCESS_KEY }}
+
+      # ==========================================
+      # Terraform Validate
+      # ==========================================
+      - name: Terraform Validate
+        id: validate
+        run: |
+          echo "======================================"
+          echo "  TERRAFORM VALIDATION"
+          echo "======================================"
+          cd terraform
+          terraform validate
+          echo "✓ Terraform configuration is valid"
+          cd ..
+         env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PRIVATE_ACCESS_KEY }}}
+
+      # ==========================================
+      # Terraform Plan
+      # ==========================================
+      - name: Terraform Plan
+        id: plan
+        run: |
+          echo "======================================"
+          echo "  TERRAFORM PLAN"
+          echo "======================================"
+          cd terraform
+          terraform plan -out=tfplan
+          echo ""
+          echo "Plan saved to: tfplan"
+          echo "✓ Terraform plan generated"
+          cd ..
+         env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PRIVATE_ACCESS_KEY }}
+
+      # ==========================================
+      # Terraform Apply
+      # ==========================================
+      - name: Terraform Apply
+        id: apply
+        run: |
+          echo "======================================"
+          echo "  TERRAFORM APPLY"
+          echo "======================================"
+          cd terraform
+          echo "Applying saved plan: tfplan"
+          terraform apply tfplan
+          echo ""
+          echo "======================================"
+          echo "  DEPLOYMENT SUMMARY"
+          echo "======================================"
+          terraform output
+          echo "======================================"
+          echo "✓ Infrastructure deployment complete!"
+          cd ..
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PRIVATE_ACCESS_KEY }}
+      # ==========================================
+      # Deployment Complete
+      # ==========================================
+      - name: Deployment Notification
+        if: always()
+        run: |
+          echo "======================================"
+          echo "  DEPLOYMENT STATUS"
+          echo "======================================"
+          if [ "${{ steps.apply.outcome }}" == "success" ]; then
+            echo "✅ Deployment SUCCEEDED"
+            echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          else
+            echo "❌ Deployment FAILED"
+            echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "Check logs above for details"
+          fi
+          echo "======================================"
