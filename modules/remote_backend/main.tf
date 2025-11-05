@@ -1,10 +1,6 @@
 resource "aws_s3_bucket" "terraform_state" {
   bucket = var.state_bucket_name
   
-  lifecycle {
-    prevent_destroy = true
-  }
-  
   tags = {
     Name        = "Terraform State Bucket"
     Description = "Stores Terraform state files"
@@ -48,29 +44,5 @@ resource "aws_s3_bucket_lifecycle_configuration" "terraform_state" {
     noncurrent_version_expiration {
       noncurrent_days = 90
     }
-  }
-}
-
-resource "aws_dynamodb_table" "terraform_locks" {
-  name         = var.lock_table_name
-  billing_mode = "PAY_PER_REQUEST"  # Cost-effective for state locking
-  hash_key     = "LockID"
-
-  attribute {
-    name = "LockID"
-    type = "S"
-  }
-  
-  point_in_time_recovery {
-    enabled = true
-  }
-  
-  server_side_encryption {
-    enabled = true
-  }
-
-  tags = {
-    Name        = "Terraform State Lock Table"
-    Description = "Prevents concurrent state modifications"
   }
 }

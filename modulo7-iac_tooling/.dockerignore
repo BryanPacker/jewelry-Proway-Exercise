@@ -1,7 +1,0 @@
-node_modules
-dist
-.terraform
-terraform.*
-.git
-README*
-main.tf

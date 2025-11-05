@@ -1,5 +1,0 @@
-.terraform*
-dist
-terraform
-package-lock*
-node_modules

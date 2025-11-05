@@ -6,17 +6,15 @@ terraform {
     }
   }
   # Comment this out for first run, uncomment after backend is created
-  # backend "s3" {
-  #   bucket         = "my-terraform-state-bucket-12345"  # Must be globally unique
-  #   key            = "production/terraform.tfstate"
-  #   region         = "us-east-1"
-  #   encrypt        = true
-  #   dynamodb_table = "terraform-state-lock"
-  #   
-  #   # Optional but recommended
-  #   versioning = true
-  # }
-}
+   backend "s3" {
+     bucket         = "jewerly-terraform-state-bucket-05112025"  # Must be globally unique
+     key            = "production/terraform.tfstate"
+     region         = "us-east-1"
+     encrypt        = true
+     use_lockfile   = true
+   }
+   
+  }
 provider "aws" {
   region = var.aws_region
 }
