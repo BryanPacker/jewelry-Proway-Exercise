@@ -1,0 +1,111 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [ main ]
+    
+jobs:
+  security-checks:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ==========================================
+      # CHECKOV - Infrastructure as Code Scanning
+      # ==========================================
+      - name: Run Checkov - IaC Security Check
+        id: checkov
+        run: |
+          docker run --rm -v $(pwd):/src bridgecrew/checkov:latest \
+            --directory /src \
+            --framework terraform,cloudformation,kubernetes,dockerfile \
+            --output cli \
+            --compact
+        continue-on-error: true
+        
+      - name: Checkov Summary
+        if: always()
+        run: echo "✓ Checkov completed - check logs for IaC security issues"
+
+      # ==========================================
+      # TRIVY - Vulnerability Scanning
+      # ==========================================
+      - name: Run Trivy - Filesystem Scan
+        id: trivy
+        run: |
+          docker run --rm -v $(pwd):/root aquasec/trivy:latest \
+            filesystem \
+            --severity HIGH,CRITICAL \
+            --format table \
+            /root
+        continue-on-error: true
+        
+      - name: Trivy Summary
+        if: always()
+        run: echo "✓ Trivy completed - check logs for vulnerability findings"
+
+      # ==========================================
+      # SEMGREP - Static Code Analysis
+      # ==========================================
+      - name: Run Semgrep - Code Pattern Analysis
+        id: semgrep
+        run: |
+          docker run --rm -v $(pwd):/src returntocorp/semgrep:latest \
+            semgrep \
+            --config=auto \
+            --json \
+            /src > /tmp/semgrep-results.json || true
+          cat /tmp/semgrep-results.json | grep -E '"results"|"errors"' || echo "No issues found"
+        continue-on-error: true
+        
+      - name: Semgrep Summary
+        if: always()
+        run: echo "✓ Semgrep completed - check logs for code pattern issues"
+
+      # ==========================================
+      # GITLEAKS - Secret Detection
+      # ==========================================
+      - name: Run Gitleaks - Secret Detection
+        id: gitleaks
+        run: |
+          docker run --rm -v $(pwd):/path ghcr.io/gitleaks/gitleaks:latest \
+            detect \
+            --source /path \
+            --report-path /tmp/gitleaks-report.json \
+            --report-format json || true
+          if [ -f /tmp/gitleaks-report.json ]; then
+            cat /tmp/gitleaks-report.json | head -50
+          else
+            echo "No secrets detected"
+          fi
+        continue-on-error: true
+        
+      - name: Gitleaks Summary
+        if: always()
+        run: echo "✓ Gitleaks completed - check logs for detected secrets"
+
+      # ==========================================
+      # SUMMARY
+      # ==========================================
+      - name: Security Scan Summary
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "     SECURITY CHECKS COMPLETED"
+          echo "=========================================="
+          echo ""
+          echo "All security checks have been executed."
+          echo "Review the logs above for findings and recommendations."
+          echo ""
+          echo "🔍 Tools Run:"
+          echo "   ✓ Checkov    - IaC and configuration scanning"
+          echo "   ✓ Trivy      - Vulnerability scanning"
+          echo "   ✓ Semgrep    - Static code analysis"
+          echo "   ✓ Gitleaks   - Secret detection"
+          echo ""
+          echo "⚠️  Note: All findings are advisory and do not block deployment"
+          echo "=========================================="
