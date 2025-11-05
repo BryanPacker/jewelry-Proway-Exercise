@@ -3,16 +3,6 @@ dist
 package-lock*
 node_modules
 
-# Local Terraform state files
-*.tfstate
-*.tfstate.*
-terraform.tfstate.backup
-
-# Sensitive variable files
-terraform.tfvars
-*.tfvars
-*.auto.tfvars
-
 # Terraform directories
 .terraform/
 .terraform.lock.hcl
