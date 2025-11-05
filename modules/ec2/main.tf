@@ -11,14 +11,6 @@ data "aws_ami" "ubuntu" {
   owners = ["099720109477"]
 }
 
-# cidr_block       = "10.0.1.0/16"
-#  region = "us-east-1"
-
-#  tags = {
-#    Name = "jewelry-vpc-bryan"
-#  }
-#}
-
 resource "aws_subnet" "jewerly_sn_bryan" {
   vpc_id            = "vpc-06786ee7f7a163059"
   cidr_block        = "172.30.169.0/24"
